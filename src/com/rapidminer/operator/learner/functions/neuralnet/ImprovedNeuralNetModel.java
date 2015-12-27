@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.logging.Logger;
 
 import com.rapidminer.example.Attribute;
 import com.rapidminer.example.Example;
@@ -44,9 +45,11 @@ import com.rapidminer.tools.Tools;
 public class ImprovedNeuralNetModel extends PredictionModel {
 
     private static final long serialVersionUID = -2206598483097451366L;
-
+    private final static Logger logger = Logger.getLogger(com.rapidminer.operator.learner.functions.neuralnet.ImprovedNeuralNetModel.class.getName());
 
     private static final ActivationFunction SIGMOID_FUNCTION = new SigmoidFunction();
+
+    private static final ActivationFunction TANH_FUNCTION = new TanhFunction();
 
     private static final ActivationFunction LINEAR_FUNCTION = new LinearFunction();
 
@@ -65,7 +68,7 @@ public class ImprovedNeuralNetModel extends PredictionModel {
         this.attributeNames = com.rapidminer.example.Tools.getRegularAttributeNames(trainingExampleSet);
     }
 
-    public void train(ExampleSet exampleSet, List<String[]> hiddenLayers, int maxCycles, double maxError, double learningRate, double momentum, boolean decay, boolean shuffle, boolean normalize, RandomGenerator randomGenerator) throws OperatorException {
+    public void train(ExampleSet exampleSet, List<String[]> hiddenLayers, int maxCycles, double maxError, double learningRate, double momentum, boolean decay, boolean tanh, boolean shuffle, boolean normalize, RandomGenerator randomGenerator, int minibatch) throws OperatorException {
         Attribute label = exampleSet.getAttributes().getLabel();
 
         int numberOfClasses = getNumberOfClasses(label);
@@ -83,7 +86,7 @@ public class ImprovedNeuralNetModel extends PredictionModel {
         double labelMax = exampleSet.getStatistics(label, Statistics.MAXIMUM);
         initOutputLayer(label, numberOfClasses, labelMin, labelMax, randomGenerator);
 
-        initHiddenLayers(exampleSet, label, hiddenLayers, randomGenerator);
+        initHiddenLayers(exampleSet, label, hiddenLayers, randomGenerator, tanh);
 
         // calculate total weight
         Attribute weightAttribute = exampleSet.getAttributes().getWeight();
@@ -110,15 +113,22 @@ public class ImprovedNeuralNetModel extends PredictionModel {
             }
         }
 
+        int batchrounds = minibatch;
+        int batchsize = exampleSet.size()/batchrounds;
+        if ((batchrounds * minibatch) < exampleSet.size()) { batchrounds++;}
+        // String err = "batchrounds=" + batchrounds + ", batchsize=" + batchsize; 
+        // logger.info("MiniBatch: " + err);
+
 
         // optimization loop
         for (int cycle = 0; cycle < maxCycles; cycle++) {
             double error = 0;
             int maxSize = exampleSet.size();
-            for (int index = 0; index < maxSize; index++) {
-                int exampleIndex = index;
+            int offset = 0;
+            for (int index = 0; index < batchsize && offset < maxSize; index++) {
+                int exampleIndex = offset;
                 if (exampleIndices != null) {
-                    exampleIndex = exampleIndices[index];
+                    exampleIndex = exampleIndices[offset];
                 }
 
                 Example example = exampleSet.getExample(exampleIndex);
@@ -139,6 +149,7 @@ public class ImprovedNeuralNetModel extends PredictionModel {
 
                 error += calculateError(example) / numberOfClasses * weight;
                 update(example, tempRate, momentum);
+                offset++;
             }
 
             error /= totalWeight;
@@ -152,7 +163,7 @@ public class ImprovedNeuralNetModel extends PredictionModel {
                     //if (Tools.isLessEqual(learningRate, 0.0d)) // should hardly happen. Unfortunately wrong. See Bug 527 and its duplicates
                     throw new OperatorException("Cannot reset network to a smaller learning rate.");
                 learningRate /= 2;
-                train(exampleSet, hiddenLayers, maxCycles, maxError, learningRate, momentum, decay, shuffle, normalize, randomGenerator);
+                train(exampleSet, hiddenLayers, maxCycles, maxError, learningRate, momentum, decay, tanh, shuffle, normalize, randomGenerator, minibatch);
             }
         }
     }
@@ -295,16 +306,16 @@ public class ImprovedNeuralNetModel extends PredictionModel {
             InnerNode actualOutput = null;
             if (label.isNominal()) {
                 String classValue = label.getMapping().mapIndex(o);
-                actualOutput = new InnerNode("Class '" + classValue + "'", Node.OUTPUT, randomGenerator, SIGMOID_FUNCTION);
+                actualOutput = new InnerNode("Class '" + classValue + "'", Node.OUTPUT, randomGenerator, SIGMOID_FUNCTION, numberOfClasses);
             } else {
-                actualOutput = new InnerNode("Regression", Node.OUTPUT, randomGenerator, LINEAR_FUNCTION);
+                actualOutput = new InnerNode("Regression", Node.OUTPUT, randomGenerator, LINEAR_FUNCTION, numberOfClasses);
             }
             addNode(actualOutput);
             Node.connect(actualOutput, outputNodes[o]);
         }
     }
 
-    private void initHiddenLayers(ExampleSet exampleSet, Attribute label, List<String[]> hiddenLayerList, RandomGenerator randomGenerator) {
+    private void initHiddenLayers(ExampleSet exampleSet, Attribute label, List<String[]> hiddenLayerList, RandomGenerator randomGenerator, boolean tanh) {
         String[] layerNames = null;
         int[] layerSizes = null;
         if (hiddenLayerList.size() > 0) {
@@ -334,7 +345,7 @@ public class ImprovedNeuralNetModel extends PredictionModel {
             //String layerName = layerNames[layerIndex];
             int numberOfNodes = layerSizes[layerIndex];
             for (int nodeIndex = 0; nodeIndex < numberOfNodes; nodeIndex++) {
-                InnerNode innerNode = new InnerNode("Node " + (nodeIndex + 1), layerIndex, randomGenerator, SIGMOID_FUNCTION);
+                InnerNode innerNode = new InnerNode("Node " + (nodeIndex + 1), layerIndex, randomGenerator, (tanh) ? TANH_FUNCTION : SIGMOID_FUNCTION, numberOfNodes);
                 addNode(innerNode);
                 if (layerIndex > 0) {
                     // connect to all nodes of previous layer

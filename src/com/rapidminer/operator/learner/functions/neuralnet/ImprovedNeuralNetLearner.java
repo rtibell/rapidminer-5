@@ -84,6 +84,10 @@ public class ImprovedNeuralNetLearner extends AbstractLearner {
 	/** Indicates if the learning rate should be cooled down. */
 	public static final String PARAMETER_DECAY = "decay";
 
+	public static final String PARAMETER_TANH = "tanh";
+
+	public static final String PARAMETER_MINI_BATCH = "mini_batch";
+
 	/** Indicates if the input data should be shuffled before learning. */
 	public static final String PARAMETER_SHUFFLE = "shuffle";
 
@@ -107,11 +111,13 @@ public class ImprovedNeuralNetLearner extends AbstractLearner {
 		double learningRate = getParameterAsDouble(PARAMETER_LEARNING_RATE);
 		double momentum = getParameterAsDouble(PARAMETER_MOMENTUM);
 		boolean decay = getParameterAsBoolean(PARAMETER_DECAY);
+		boolean tanh = getParameterAsBoolean(PARAMETER_TANH);
+		int miniBatch = getParameterAsInt(PARAMETER_MINI_BATCH);
 		boolean shuffle = getParameterAsBoolean(PARAMETER_SHUFFLE);
 		boolean normalize = getParameterAsBoolean(PARAMETER_NORMALIZE);
 		RandomGenerator randomGenerator = RandomGenerator.getRandomGenerator(this);
 
-		model.train(exampleSet, hiddenLayers, maxCycles, maxError, learningRate, momentum, decay, shuffle, normalize, randomGenerator);
+		model.train(exampleSet, hiddenLayers, maxCycles, maxError, learningRate, momentum, decay, tanh, shuffle, normalize, randomGenerator, miniBatch);
 		return model;
 	}
 
@@ -157,6 +163,10 @@ public class ImprovedNeuralNetLearner extends AbstractLearner {
 		types.add(new ParameterTypeDouble(PARAMETER_MOMENTUM, "The momentum simply adds a fraction of the previous weight update to the current one (prevent local maxima and smoothes optimization directions).", 0.0d, 1.0d, 0.2d));
 
 		types.add(new ParameterTypeBoolean(PARAMETER_DECAY, "Indicates if the learning rate should be decreased during learningh", false));
+
+		types.add(new ParameterTypeBoolean(PARAMETER_TANH, "Use tangens hyperbolic insted of sigmoid function", false));
+
+		types.add(new ParameterTypeInt(PARAMETER_MINI_BATCH, "Number of mini-batch shards", 1, Integer.MAX_VALUE, 1));
 
 		types.add(new ParameterTypeBoolean(PARAMETER_SHUFFLE, "Indicates if the input data should be shuffled before learning (increases memory usage but is recommended if data is sorted before)", true));
 

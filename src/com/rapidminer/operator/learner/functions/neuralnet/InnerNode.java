@@ -58,6 +58,16 @@ public class InnerNode extends Node {
 		weightChanges = new double[] { 0 };
 	}
 
+	public InnerNode(String nodeName, int layerIndex, RandomGenerator randomGenerator, ActivationFunction function, int nrNodes) {
+		super(nodeName, layerIndex, HIDDEN);
+		this.randomGenerator = randomGenerator;
+		this.function = function;
+		// weights = new double[] { this.randomGenerator.nextDouble() * 0.1d - 0.05d }; 
+		double urng = 1 / Math.sqrt(nrNodes);
+		weights = new double[] { this.randomGenerator.nextDoubleInRange(-1 * urng, urng)}; 
+		weightChanges = new double[] { 0 };
+	}
+
 	public void setActivationFunction(ActivationFunction function) {
 		this.function = function;
 	}

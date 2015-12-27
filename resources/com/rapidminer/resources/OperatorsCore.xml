@@ -1964,6 +1964,14 @@
 						</class>
 						<replaces>NeuralNetImproved</replaces>
 					</operator>
+					<!--
+					<operator>
+						<key>neural_net_rt</key>
+						<class>com.rapidminer.operator.learner.functions.neuralnet.ImprovedNeuralNetLearner
+						</class>
+						<replaces>NeuralNetRt/replaces>
+					</operator>
+					-->
 					<operator>
 						<key>auto_mlp</key>
 						<class>de.dfki.madm.paren.operator.learner.functions.neuralnet.AutoMLPImprovedNeuralNetLearner

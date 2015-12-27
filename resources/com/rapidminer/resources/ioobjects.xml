@@ -296,7 +296,7 @@
         <renderer>com.rapidminer.gui.renderer.models.DistributionModelTableRenderer</renderer>
         <renderer>com.rapidminer.gui.renderer.AnnotationsRenderer</renderer>      
     </ioobject>
-
+<!--
     <ioobject
         name="Neural Net"
         class="com.rapidminer.operator.learner.functions.neuralnet.NeuralNetModel"
@@ -306,7 +306,7 @@
         <renderer>com.rapidminer.gui.renderer.DefaultTextRenderer</renderer>
         <renderer>com.rapidminer.gui.renderer.AnnotationsRenderer</renderer>
     </ioobject>
-    
+ -->   
     <ioobject
         name="Simple Neural Net"
         class="com.rapidminer.operator.learner.functions.neuralnet.SimpleNeuralNetModel"
