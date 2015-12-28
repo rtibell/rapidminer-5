@@ -23,8 +23,10 @@
 package com.rapidminer.operator.learner.functions.neuralnet;
 
 import java.util.List;
+import java.util.logging.Logger;
 
 import com.rapidminer.example.ExampleSet;
+import com.rapidminer.example.set.SplittedExampleSet;
 import com.rapidminer.operator.Model;
 import com.rapidminer.operator.OperatorCapability;
 import com.rapidminer.operator.OperatorDescription;
@@ -65,6 +67,7 @@ import com.rapidminer.tools.RandomGenerator;
  * @author Ingo Mierswa
  */
 public class ImprovedNeuralNetLearner extends AbstractLearner {	
+   private final static Logger logger = Logger.getLogger(com.rapidminer.operator.learner.functions.neuralnet.ImprovedNeuralNetLearner.class.getName());
 
 	/** The parameter name for &quot;The number of hidden layers. Only used if no layers are defined by the list hidden_layer_types.&quot; */
 	public static final String PARAMETER_HIDDEN_LAYERS = "hidden_layers";
@@ -85,6 +88,8 @@ public class ImprovedNeuralNetLearner extends AbstractLearner {
 	public static final String PARAMETER_DECAY = "decay";
 
 	public static final String PARAMETER_TANH = "tanh";
+
+	public static final String PARAMETER_SPLIT_RATIO = "early_stop_ratio";
 
 	public static final String PARAMETER_MINI_BATCH = "mini_batch";
 
@@ -116,8 +121,21 @@ public class ImprovedNeuralNetLearner extends AbstractLearner {
 		boolean shuffle = getParameterAsBoolean(PARAMETER_SHUFFLE);
 		boolean normalize = getParameterAsBoolean(PARAMETER_NORMALIZE);
 		RandomGenerator randomGenerator = RandomGenerator.getRandomGenerator(this);
+		double splitRatio = getParameterAsDouble(PARAMETER_SPLIT_RATIO);
+		int samplingType = SplittedExampleSet.SHUFFLED_SAMPLING;
+		boolean useLocalRandomSeed = true;
+		int seed = 1992;
+		if (splitRatio > 0) {
+			SplittedExampleSet splitt = new SplittedExampleSet(exampleSet, splitRatio, samplingType, useLocalRandomSeed, seed);
+			SplittedExampleSet splitt2 = (SplittedExampleSet) splitt.clone();
+			splitt.selectSingleSubset(0);
+			splitt2.selectSingleSubset(1);
+			model.train(splitt, splitt2, hiddenLayers, maxCycles, maxError, learningRate, momentum, decay, tanh, shuffle, normalize, randomGenerator, miniBatch);
 
-		model.train(exampleSet, hiddenLayers, maxCycles, maxError, learningRate, momentum, decay, tanh, shuffle, normalize, randomGenerator, miniBatch);
+		} else {
+
+			model.train(exampleSet, null, hiddenLayers, maxCycles, maxError, learningRate, momentum, decay, tanh, shuffle, normalize, randomGenerator, miniBatch);
+		}
 		return model;
 	}
 
@@ -167,6 +185,8 @@ public class ImprovedNeuralNetLearner extends AbstractLearner {
 		types.add(new ParameterTypeBoolean(PARAMETER_TANH, "Use tangens hyperbolic insted of sigmoid function", false));
 
 		types.add(new ParameterTypeInt(PARAMETER_MINI_BATCH, "Number of mini-batch shards", 1, Integer.MAX_VALUE, 1));
+
+		types.add(new ParameterTypeDouble(PARAMETER_SPLIT_RATIO, "If this parameter is grather then 0 the ratio specified is set aside for verification of early stopping.", 0.0d, 1.0d, 0.1d));
 
 		types.add(new ParameterTypeBoolean(PARAMETER_SHUFFLE, "Indicates if the input data should be shuffled before learning (increases memory usage but is recommended if data is sorted before)", true));
 

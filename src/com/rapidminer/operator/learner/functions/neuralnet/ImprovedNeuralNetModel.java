@@ -68,7 +68,7 @@ public class ImprovedNeuralNetModel extends PredictionModel {
         this.attributeNames = com.rapidminer.example.Tools.getRegularAttributeNames(trainingExampleSet);
     }
 
-    public void train(ExampleSet exampleSet, List<String[]> hiddenLayers, int maxCycles, double maxError, double learningRate, double momentum, boolean decay, boolean tanh, boolean shuffle, boolean normalize, RandomGenerator randomGenerator, int minibatch) throws OperatorException {
+    public void train(ExampleSet exampleSet, ExampleSet verifySet, List<String[]> hiddenLayers, int maxCycles, double maxError, double learningRate, double momentum, boolean decay, boolean tanh, boolean shuffle, boolean normalize, RandomGenerator randomGenerator, int minibatch) throws OperatorException {
         Attribute label = exampleSet.getAttributes().getLabel();
 
         int numberOfClasses = getNumberOfClasses(label);
@@ -121,6 +121,9 @@ public class ImprovedNeuralNetModel extends PredictionModel {
 
 
         // optimization loop
+        double prev1Error = Double.MAX_VALUE;
+        double prev2Error = Double.MAX_VALUE;
+        double prev3Error = Double.MAX_VALUE;
         for (int cycle = 0; cycle < maxCycles; cycle++) {
             double error = 0;
             int maxSize = exampleSet.size();
@@ -152,6 +155,19 @@ public class ImprovedNeuralNetModel extends PredictionModel {
                 offset++;
             }
 
+            if (verifySet != null) {
+                double vfyError = 0;
+                for (int q = 0; q < verifySet.size(); q++)
+                    vfyError += calculateError(verifySet.getExample(q));
+                //logger.info("Round=" + cycle + " VfyError=" + vfyError + " prev1Error=" + prev1Error + " prev2Error=" + prev2Error + " prev3Error=" + prev3Error);
+                if ((vfyError > prev1Error) && (vfyError > prev2Error) && (vfyError > prev3Error)) {
+                    logger.info("Earyl stopping at Round=" + cycle + " VfyError=" + vfyError + " prev1Error=" + prev1Error + " prev2Error=" + prev2Error + " prev3Error=" + prev3Error);
+                    break;
+                }
+                prev3Error = prev2Error;
+                prev2Error = prev1Error;
+                prev1Error = vfyError;
+            }
             error /= totalWeight;
 
             if (error < maxError) {
@@ -163,7 +179,7 @@ public class ImprovedNeuralNetModel extends PredictionModel {
                     //if (Tools.isLessEqual(learningRate, 0.0d)) // should hardly happen. Unfortunately wrong. See Bug 527 and its duplicates
                     throw new OperatorException("Cannot reset network to a smaller learning rate.");
                 learningRate /= 2;
-                train(exampleSet, hiddenLayers, maxCycles, maxError, learningRate, momentum, decay, tanh, shuffle, normalize, randomGenerator, minibatch);
+                train(exampleSet, verifySet, hiddenLayers, maxCycles, maxError, learningRate, momentum, decay, tanh, shuffle, normalize, randomGenerator, minibatch);
             }
         }
     }
