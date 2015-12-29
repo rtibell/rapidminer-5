@@ -53,6 +53,7 @@ public class ImprovedNeuralNetModel extends PredictionModel {
 
     private static final ActivationFunction LINEAR_FUNCTION = new LinearFunction();
 
+    private static final double MINIMUM_LEARNING_RATE = 0.0000001d;
 
     private String[] attributeNames;
 
@@ -62,6 +63,11 @@ public class ImprovedNeuralNetModel extends PredictionModel {
 
     private OutputNode[] outputNodes = new OutputNode[0];
 
+    private InputNode[] savedInputNodes = null;
+
+    private InnerNode[] savedInnerNodes = null;
+
+    private OutputNode[] savedOutputNodes = null;
 
     protected ImprovedNeuralNetModel(ExampleSet trainingExampleSet) {
         super(trainingExampleSet);
@@ -69,6 +75,7 @@ public class ImprovedNeuralNetModel extends PredictionModel {
     }
 
     public void train(ExampleSet exampleSet, ExampleSet verifySet, List<String[]> hiddenLayers, int maxCycles, double maxError, int stopDelay, double learningRate, double momentum, boolean decay, boolean tanh, boolean shuffle, boolean normalize, RandomGenerator randomGenerator, int minibatch) throws OperatorException {
+        boolean oldDecey = false;
         Attribute label = exampleSet.getAttributes().getLabel();
 
         int numberOfClasses = getNumberOfClasses(label);
@@ -121,10 +128,9 @@ public class ImprovedNeuralNetModel extends PredictionModel {
 
 
         // optimization loop
-        double prev1Error = Double.MAX_VALUE;
-        double prev2Error = Double.MAX_VALUE;
-        double prev3Error = Double.MAX_VALUE;
+        double prevError = Double.MAX_VALUE;
         for (int cycle = 0; cycle < maxCycles; cycle++) {
+            if (verifySet != null) saveState();
             double error = 0;
             int maxSize = exampleSet.size();
             int offset = 0;
@@ -145,28 +151,29 @@ public class ImprovedNeuralNetModel extends PredictionModel {
                     weight = example.getValue(weightAttribute);
                 }
 
-                double tempRate = learningRate * weight;
-                if (decay) {
+                double tempRate = 0;
+                if (oldDecey) {
+                    tempRate = learningRate * weight;
                     tempRate /= cycle + 1;
                 }
-
+                if (decay) {
+                    tempRate = Math.pow(learningRate,cycle + 1) * weight;
+                }
                 error += calculateError(example) / numberOfClasses * weight;
                 update(example, tempRate, momentum);
                 offset++;
             }
 
-            if ((verifySet != null) && (cycle > stopDelay)) {
+            if ((verifySet != null) && (cycle >= stopDelay)) {
                 double vfyError = 0;
                 for (int q = 0; q < verifySet.size(); q++)
                     vfyError += calculateError(verifySet.getExample(q));
-                //logger.info("Round=" + cycle + " VfyError=" + vfyError + " prev1Error=" + prev1Error + " prev2Error=" + prev2Error + " prev3Error=" + prev3Error);
-                if ((vfyError > prev1Error) && (prev1Error > prev2Error) && (prev2Error > prev3Error)) {
-                    logger.info("Earyl stopping at Round=" + cycle + " VfyError=" + vfyError + " prev1Error=" + prev1Error + " prev2Error=" + prev2Error + " prev3Error=" + prev3Error);
+                if ((vfyError > prevError)) {
+                    logger.info("Earyl stopping at Round=" + cycle + " VfyError=" + vfyError + " prevError=" + prevError);
+                    restoreState();
                     break;
                 }
-                prev3Error = prev2Error;
-                prev2Error = prev1Error;
-                prev1Error = vfyError;
+                prevError = vfyError;
             }
             error /= totalWeight;
 
@@ -175,9 +182,11 @@ public class ImprovedNeuralNetModel extends PredictionModel {
             }
 
             if (Double.isInfinite(error) || Double.isNaN(error)) {
-                if (learningRate <= Double.MIN_VALUE)
+                //if (learningRate <= Double.MIN_VALUE)
+                if (learningRate <= MINIMUM_LEARNING_RATE)
                     //if (Tools.isLessEqual(learningRate, 0.0d)) // should hardly happen. Unfortunately wrong. See Bug 527 and its duplicates
                     throw new OperatorException("Cannot reset network to a smaller learning rate.");
+                logger.info("Resetting network to learning rate " + (learningRate/2) + " from " + learningRate);
                 learningRate /= 2;
                 train(exampleSet, verifySet, hiddenLayers, maxCycles, maxError, stopDelay, learningRate, momentum, decay, tanh, shuffle, normalize, randomGenerator, minibatch);
             }
@@ -478,5 +487,17 @@ public class ImprovedNeuralNetModel extends PredictionModel {
             }
         }
         return result.toString();
+    }
+
+    private void saveState() {
+        savedInputNodes = inputNodes;
+        savedInnerNodes = innerNodes;
+        savedOutputNodes = outputNodes;
+    }
+
+    private void restoreState() {
+        inputNodes = savedInputNodes;
+        innerNodes = savedInnerNodes;
+        outputNodes = savedOutputNodes;
     }
 }
