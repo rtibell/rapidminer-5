@@ -91,6 +91,8 @@ public class ImprovedNeuralNetLearner extends AbstractLearner {
 
 	public static final String PARAMETER_SPLIT_RATIO = "early_stop_ratio";
 
+	public static final String PARAMETER_SPLIT_DELAY = "early_stop_delay";
+
 	public static final String PARAMETER_MINI_BATCH = "mini_batch";
 
 	/** Indicates if the input data should be shuffled before learning. */
@@ -122,6 +124,7 @@ public class ImprovedNeuralNetLearner extends AbstractLearner {
 		boolean normalize = getParameterAsBoolean(PARAMETER_NORMALIZE);
 		RandomGenerator randomGenerator = RandomGenerator.getRandomGenerator(this);
 		double splitRatio = getParameterAsDouble(PARAMETER_SPLIT_RATIO);
+		int stopDelay = getParameterAsInt(PARAMETER_SPLIT_DELAY);
 		int samplingType = SplittedExampleSet.SHUFFLED_SAMPLING;
 		boolean useLocalRandomSeed = true;
 		int seed = 1992;
@@ -130,11 +133,11 @@ public class ImprovedNeuralNetLearner extends AbstractLearner {
 			SplittedExampleSet splitt2 = (SplittedExampleSet) splitt.clone();
 			splitt.selectSingleSubset(0);
 			splitt2.selectSingleSubset(1);
-			model.train(splitt, splitt2, hiddenLayers, maxCycles, maxError, learningRate, momentum, decay, tanh, shuffle, normalize, randomGenerator, miniBatch);
+			model.train(splitt, splitt2, hiddenLayers, maxCycles, maxError, stopDelay, learningRate, momentum, decay, tanh, shuffle, normalize, randomGenerator, miniBatch);
 
 		} else {
 
-			model.train(exampleSet, null, hiddenLayers, maxCycles, maxError, learningRate, momentum, decay, tanh, shuffle, normalize, randomGenerator, miniBatch);
+			model.train(exampleSet, null, hiddenLayers, maxCycles, maxError, stopDelay, learningRate, momentum, decay, tanh, shuffle, normalize, randomGenerator, miniBatch);
 		}
 		return model;
 	}
@@ -187,6 +190,8 @@ public class ImprovedNeuralNetLearner extends AbstractLearner {
 		types.add(new ParameterTypeInt(PARAMETER_MINI_BATCH, "Number of mini-batch shards", 1, Integer.MAX_VALUE, 1));
 
 		types.add(new ParameterTypeDouble(PARAMETER_SPLIT_RATIO, "If this parameter is grather then 0 the ratio specified is set aside for verification of early stopping.", 0.0d, 1.0d, 0.1d));
+
+		types.add(new ParameterTypeInt(PARAMETER_SPLIT_DELAY, "Number of cycles to wait before applying early stopping.", 0, Integer.MAX_VALUE, 200));
 
 		types.add(new ParameterTypeBoolean(PARAMETER_SHUFFLE, "Indicates if the input data should be shuffled before learning (increases memory usage but is recommended if data is sorted before)", true));
 

@@ -28,6 +28,7 @@
         <parameter key="mini_batch" value="1"/>
         <parameter key="error_epsilon" value="0.01"/>
         <parameter key="early_stop_ratio" value="0.10"/>
+        <parameter key="early_stop_delay" value="200"/>
         <parameter key="use_local_random_seed" value="false"/>
         <parameter key="local_random_seed" value="1992"/>
       </operator>
